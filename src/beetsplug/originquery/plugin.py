@@ -145,6 +145,13 @@ class OriginQuery(BeetsPlugin):
         except confuse.NotFoundError:
             self.use_origin_on_conflict = False
 
+        try:
+            self.preserve_media_with_catalognum = self.config[
+                "preserve_media_with_catalognum"
+            ].get(bool)
+        except confuse.NotFoundError:
+            self.preserve_media_with_catalognum = False
+
     def error(self, msg):
         self._log.error(escape_braces(ui.colorize("text_error", msg)))
 
@@ -305,9 +312,17 @@ class OriginQuery(BeetsPlugin):
                         )
                     item[tag] = origin_value
 
-                # beets weighs media heavily, and will even prioritize a media match over an exact catalognum match.
-                # At the same time, media for uploaded music is often mislabeled (e.g., Enhanced CD and SACD are just
-                # grouped as CD). This does not make a good combination. As a workaround, lower the weight for media
-                # if we also have a catalognum.
-                if item["media"] and item["catalognum"]:
-                    config["match"]["distance_weights"]["media"] = 0.2
+                # Apply the media removal workaround by default
+                # beets weighs media heavily, and will even prioritize a media match
+                # over an exact catalognum match. At the same time, media for uploaded
+                # music is often mislabeled (e.g., Enhanced CD and SACD are just
+                # grouped as CD). This does not make a good combination. As a
+                # workaround, remove the media from the item if we also have a
+                # catalognum, unless the config option is set to preserve it.
+                if (
+                    not self.preserve_media_with_catalognum
+                    and item.get("media")
+                    and item.get("catalognum")
+                ):
+                    del item["media"]
+                    tag_compare["media"]["active"] = False
