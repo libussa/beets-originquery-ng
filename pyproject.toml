@@ -1,0 +1,28 @@
+[project]
+name = "beets-originquery"
+version = "1.0.2"
+description = "Integrates origin.txt metadata into beets MusicBrainz queries"
+readme = "README.md"
+authors = [
+    { name = "x1ppy" },
+]
+requires-python = ">=3.10"
+dependencies = [
+    "beets>=2.5.1",
+    "confuse>=2.1.0",
+    "jsonpath-rw>=1.4.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.9.26,<0.10.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "beetsplug.beets_originquery"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "ruff>=0.14.11",
+    "ty>=0.0.11",
+]
