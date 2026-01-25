@@ -54,6 +54,9 @@ def highlight(text, active=True):
 class OriginQuery(BeetsPlugin):
     def __init__(self):
         super(OriginQuery, self).__init__()
+        # Keep the config namespace stable even though this class lives in a submodule.
+        self.name = "originquery"
+        self.config = config[self.name]
 
         def fail(msg):
             self.error(msg)
