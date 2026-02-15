@@ -1,3 +1,4 @@
+import logging
 import glob
 import json
 import os
@@ -69,7 +70,7 @@ class OriginQuery(BeetsPlugin):
             return fail("This version of beets does not support extra query tags.")
 
         if not len(self.extra_tags):
-            return fail("Config error: musicbrainz.extra_tags not set.")
+            return logging.warning("Config error: musicbrainz.extra_tags not set.")
 
         config_patterns = None
         try:
