@@ -18,13 +18,14 @@ BEETS_TO_LABEL = OrderedDict(
         ("year", "Edition year"),
         ("country", "Country"),
         ("label", "Record label"),
+        ("barcode", "Barcode"),
         ("catalognum", "Catalog number"),
         ("albumdisambig", "Edition"),
     ]
 )
 
 # Conflicts will be reported if any of these fields don't match.
-CONFLICT_FIELDS = ["catalognum", "media"]
+CONFLICT_FIELDS = ["barcode", "catalognum", "media"]
 
 
 def escape_braces(string):
