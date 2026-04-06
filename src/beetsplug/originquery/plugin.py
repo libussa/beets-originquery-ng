@@ -478,6 +478,6 @@ class OriginQuery(BeetsPlugin):
                         item.path,
                     )
                 else:
-                    self._emit_visible("Removing media field (has catalognum)")
+                    self._log.debug("Removing media field (has catalognum)")
                     del item["media"]
                     task_state.tag_compare["media"].active = False
