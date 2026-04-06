@@ -17,9 +17,9 @@ classifiers = [
 ]
 dependencies = [
     "beets>=2.5.1",
-    "confuse>=2.1.0",
-    "jsonpath-rw>=1.4.0",
-    "pyyaml>=6.0.0",
+    "confuse",
+    "jsonpath-rw",
+    "pyyaml",
 ]
 
 [project.urls]
@@ -29,7 +29,7 @@ Issues = "https://github.com/libussa/beets-originquery-ng/issues"
 Releases = "https://github.com/libussa/beets-originquery-ng/releases"
 
 [build-system]
-requires = ["uv_build>=0.9.26,<0.10.0"]
+requires = ["uv_build<0.12"]
 build-backend = "uv_build"
 
 [tool.uv.build-backend]
@@ -37,11 +37,11 @@ module-name = "beetsplug.originquery"
 
 [dependency-groups]
 dev = [
-    "prek>=0.3.8",
-    "pytest>=9.0.2",
-    "ruff>=0.14.11",
-    "twine>=6.1.0",
-    "ty>=0.0.11",
+    "prek",
+    "pytest",
+    "ruff",
+    "twine",
+    "ty",
 ]
 
 [tool.pytest.ini_options]
