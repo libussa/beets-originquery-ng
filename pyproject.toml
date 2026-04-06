@@ -1,10 +1,11 @@
 [project]
 name = "beets-originquery-ng"
-version = "1.0.2"
+version = "2.0.0"
 description = "Use origin files to enrich beets importer search criteria"
 readme = "README.md"
 authors = [
     { name = "x1ppy" },
+    { name = "libussa" },
 ]
 requires-python = ">=3.10,<3.14"
 classifiers = [
@@ -21,6 +22,12 @@ dependencies = [
     "pyyaml>=6.0.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/libussa/beets-originquery-ng"
+Repository = "https://github.com/libussa/beets-originquery-ng"
+Issues = "https://github.com/libussa/beets-originquery-ng/issues"
+Releases = "https://github.com/libussa/beets-originquery-ng/releases"
+
 [build-system]
 requires = ["uv_build>=0.9.26,<0.10.0"]
 build-backend = "uv_build"
@@ -33,6 +40,7 @@ dev = [
     "prek>=0.3.8",
     "pytest>=9.0.2",
     "ruff>=0.14.11",
+    "twine>=6.1.0",
     "ty>=0.0.11",
 ]
 

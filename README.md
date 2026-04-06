@@ -276,3 +276,26 @@ The repository also includes a local importer bench wired to real sample albums:
     ./.bench/import-album.sh '2018-For Emma, Forever Ago (Reissue)'
 
 The default development toolchain uses `ruff`, `ty`, and `pytest`.
+
+Release process
+---------------
+
+Releases are tag-driven from GitHub Actions and publish to PyPI using Trusted
+Publishing.
+
+Maintainer flow:
+
+1. Update `project.version` in `pyproject.toml`.
+2. Merge the version bump to `master`.
+3. Push a tag in the form `vX.Y.Z` that matches `project.version`.
+
+The release workflow then:
+
+- validates the tag against `pyproject.toml`
+- reruns lint, type-check, tests, and packaging checks
+- builds `sdist` and `wheel`
+- publishes `beets-originquery-ng` to PyPI
+- creates a GitHub Release with auto-generated notes and attached artifacts
+
+Before the first automated publish, configure PyPI Trusted Publishing for this
+repository and workflow.
