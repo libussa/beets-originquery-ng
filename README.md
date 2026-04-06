@@ -1,362 +1,274 @@
 beets-originquery
 =================
 
-Plugin for beets that uses supplemental files in imported directories to improve MusicBrainz matches for untagged data.
+`originquery` is a beets plugin that reads supplemental metadata from an origin
+file in each import directory and injects that data into the importer before
+candidate lookup.
 
-Motivation
-----------
+This is most useful when audio files only have minimal tags, but the release
+directory also contains richer metadata such as edition year, catalog number,
+label, media, or release notes.
 
-Whenever beets tries to identify your music, it queries MusicBrainz using tags from your music files.  The query returns
-only the few best matches of the many possible results, however, so the better your tags, the more likely you are to get
-a good match.
+What it does
+------------
 
-But one of the reasons we're using beets to begin with is to _get_ those tags; music is often tagged with only the most
-essential data (i.e., album and artist), lacking tags that could actually identify the specific edition of an album.
-That puts us in a chicken-and-egg situation: beets can't accurately identify the release until it has relevant tags, but
-it can't assign relevant tags without knowing the release!
+During `beet import`, the plugin can:
 
-In other words, while beets is an excellent tool, it's only as useful as the data it has available. It's common to store
-extra data in separate text or JSON files, but that data isn't read by beets as it's not included in music files
-themselves. If only there were a way to feed this origin data to beets to supplement our tags to accurately identify
-editions…
+- read a text, JSON, YAML, or YML origin file from the album directory
+- map fields from that file onto beets item fields before lookup
+- surface the tagged-vs-origin values during candidate selection
+- detect conflicts between tagged and origin data
+- optionally remove a conflicting `albumartist` before beets derives search
+  terms
+- optionally scan the origin file for provider URLs such as Discogs or Bandcamp
 
-Enter `originquery`.
+Current beets behavior
+----------------------
+
+`originquery` is designed around current beets metadata-source behavior:
+
+- `musicbrainz.extra_tags` is the supported way to add release-disambiguating
+  search fields such as `year`, `catalognum`, `media`, and `label`
+- Discogs can still be enabled alongside this plugin, but current beets does
+  not document a matching `discogs.extra_tags` setting
+- if no `musicbrainz.extra_tags` are configured, `originquery` still works for
+  `artist` and `album`, but the richer MusicBrainz-specific search terms are
+  unavailable
 
 Installation
 ------------
 
-This plugin relies on cutting-edge beets features to work. In particular, your beets installation must support the 
-[`extra_tags`](https://github.com/beetbox/beets/blob/master/docs/reference/config.rst#id70) setting, which is not yet in
-an official beets release. Until beets v1.5.0 is released with [the commit adding this
-feature](https://github.com/beetbox/beets/commit/8ed76f1198c23b9205c6f566860a35569945d4bb), you must install the latest
-beets manually:
+Install a current beets release and then install this plugin:
 
-    $> pip install git+https://github.com/beetbox/beets
-    $> beet --version
-    beets version 1.5.0
+    pip install beets
+    pip install git+https://github.com/x1ppy/beets-originquery
 
-Once you have the latest and greatest beets, you can install this plugin:
+The development bench in this repository currently validates the plugin against
+beets `2.8.0`.
 
-    $> pip install git+https://github.com/x1ppy/beets-originquery
-
-Next, add the following section to your beets config file to enable improved metadata queries from tags. The plugin supports both MusicBrainz and Discogs as metadata sources:
-
-    # For MusicBrainz autotagging:
-    musicbrainz:
-        extra_tags: [year, catalognum, country, media, label]
-    
-    # For Discogs autotagging:
-    discogs:
-        extra_tags: [year, catalognum, country, media, label]
-
-**Note**: The plugin will automatically use the first available source's extra tags. If both are configured, it will use MusicBrainz first, then fall back to Discogs.
-
-Finally, add `originquery` to the `plugins` section of your beets config file, creating it if it doesn't exist:
+Minimal configuration:
 
     plugins:
-        - originquery
+      - musicbrainz
+      - originquery
+
+    musicbrainz:
+      extra_tags: [year, catalognum, media, label, albumdisambig]
+
+    originquery:
+      origin_file: origin.yaml
+      tag_patterns:
+        artist: $.Artist
+        album: $.Name
+        year: $['Edition year']
+        label: $['Record label']
+        catalognum: $['Catalog number']
+        media: $.Media
+        albumdisambig: $.Edition
+
+If you also use Discogs, enable it normally in beets:
+
+    plugins:
+      - musicbrainz
+      - discogs
+      - originquery
+
+The plugin does not require Discogs, and it does not currently rely on any
+Discogs-specific `extra_tags` setting.
 
 Configuration
 -------------
 
-`originquery` reads an _origin file_ at the root of each album directory when music is imported. The origin file can be
-either a text, JSON, or YAML file. Beyond that, the format of the file is entirely user-defined and is specified in the
-`originquery` configuration.
-
-### Metadata Sources
-
-The plugin supports multiple metadata sources for extra tags:
-
-- **MusicBrainz**: The default and most comprehensive music database
-- **Discogs**: Alternative database with strong coverage of physical releases
-
-The plugin automatically selects the first available source that has `extra_tags` configured. Priority order is:
-1. MusicBrainz
-2. Discogs
-
-This means if both sources are configured, MusicBrainz will be used. If only Discogs is configured, it will be used instead.
-
-**URL Extraction**: You can enable automatic extraction of metadata URLs from origin files by adding `extract_urls_from_origin: yes` to any metadata provider's configuration. When enabled, the plugin will scan origin files for URLs matching that provider's domain and extract them for potential use during import.
-
-Your beets configuration must contain a section with the following fields:
+`originquery` looks for an origin file at the root of each import directory.
+The filename may be a glob:
 
     originquery:
-        origin_file: <origin_file_name>
-        tag_patterns:
-            <tag1>: <pattern1>
-            <tag2>: <pattern2>
+      origin_file: origin-*.yaml
 
-The `origin_file` supports glob wildcard characters. So, for instance, if you use a date scheme for your origin file
-naming (e.g., `origin-2020025.txt`), you could specify `origin_file: 'origin-*.txt'` here. If the pattern matches
-multiple files, the first file in the alphanumerically sorted list of results will be used.
+If multiple files match, the first alphanumerically sorted match is used.
 
-The tags under `tag_patterns` can be any combination of the following tags:
-* `artist` (artist name from origin data)
-* `album` (album name from origin data)
-* `media` (CD, vinyl, …)
-* `year` (edition year, _not_ original release year)
-* `country` (US, Japan, …)
-* `label` (Epic, Atlantic, …)
-* `catalognum` (ABC-XYZ, 102030, …)
-* `albumdisambig` (Remastered, Deluxe Edition, …)
-
-**Additional Display Fields**: You can also specify additional fields in `tag_patterns` that aren't used for import matching but are displayed during the import process for verification purposes. For example, you might add fields like `tags` (genre tags) or other metadata that helps identify the release:
+Supported options:
 
     originquery:
-        origin_file: origin.yaml
-        tag_patterns:
-            artist: "$.Artist"
-            album: "$.Name"
-            year: "$.Edition year"
-            label: "$.Record label"
-            catalognum: "$.Catalog number"
-            tags: "$.Tags"  # This will be displayed but not used for import matching
+      origin_file: origin.yaml
+      origin_type: yaml
+      use_origin_on_conflict: no
+      preserve_media_with_catalognum: no
+      remove_conflicting_albumartist: no
+      tag_patterns:
+        artist: $.Artist
+        album: $.Name
+        year: $['Edition year']
+        label: $['Record label']
+        catalognum: $['Catalog number']
+        media: $.Media
+        albumdisambig: $.Edition
+        tags: $.Tags
 
-By default, the origin file parser will be determined by its file extension. `.yaml` will be parsed as YAML, `.json`
-will be parsed as JSON, and generic text parsing will be used otherwise. If your file format doesn't match its
-extension, you can override the file type with the `origin_type` config option, setting the type to either `yaml`,
-`json`, or `text`:
+Options:
 
-    originquery:
-        ...
-        origin_type: <yaml|json|text>
+- `origin_file`: filename or glob, relative to the album directory
+- `origin_type`: `text`, `json`, `yaml`, or `yml`; when omitted, the file
+  extension is used
+- `use_origin_on_conflict`: when `yes`, origin values win if conflict fields do
+  not match
+- `preserve_media_with_catalognum`: when `no`, the plugin removes `media` if
+  both `media` and `catalognum` are present
+- `remove_conflicting_albumartist`: when `yes`, a unanimous tagged
+  `albumartist` that disagrees with origin `artist` is cleared before search
 
-Additional configuration options:
+Import fields
+-------------
 
-    originquery:
-        ...
-        use_origin_on_conflict: yes          # Use origin data on conflicts (default: no)
-        preserve_media_with_catalognum: yes # Preserve media field when catalognum present (default: no)
-        remove_conflicting_albumartist: yes # Remove albumartist field when it conflicts with origin.yaml artist (default: no)
+The following `tag_patterns` keys are understood as beets fields:
 
-The patterns used will depend on your origin file type as outlined below.
+- `artist`
+- `album`
+- `media`
+- `year`
+- `country`
+- `label`
+- `barcode`
+- `catalognum`
+- `albumdisambig`
 
-### Text files
+Any additional keys are treated as display-only fields and are shown in the
+import summary, but they are not mapped onto beets search fields.
 
-When using text origin files, the `tag_patterns` pattern must be a regular expression containing a single match group
-corresponding to the value for the given tag.
+File formats
+------------
 
-As an arbitrary example, you might have origin files that look like the following:
+Text origin files
+~~~~~~~~~~~~~~~~~
 
-    media=CD
-    year=1988
-    label=Mobile Fidelity Sound Lab
-    catalognum=UDCD 517
-
-In this case, your beets config would look like this:
-
-    originquery:
-        origin_file: origin.txt
-        tag_patterns:
-            media: 'media=(.+)'
-            year: 'year=(\d{4})'
-            label: 'label=(.+)'
-            catalognum: 'catalognum=(.+)'
-
-This means that you have a file named `origin.txt` at the root of each album directory, and the `media`, `year`, `label`,
-and `catalognum` tags will be parsed from this file and used by beets to query MusicBrainz. In this case, each tag and
-value would be listed in the origin file separated by an `=` (i.e., `<tag>=<value>`) as shown in the example. Of course,
-you're free to use a completely different formatting scheme if you update the patterns accordingly.
-
-### JSON files
-
-With JSON origin files, the `tag_patterns` pattern must be a [JSONPath](https://goessner.net/articles/JsonPath/)
-expression that points to the value for the given tag.
-
-As an arbitrary example, you might have origin files that look like the following:
-
-    {
-      "mydata": {
-        "media": "CD",
-        "year": 1988,
-        "label": "Mobile Fidelity Sound Lab",
-        "catalognum": "UDCD 517"
-      }
-    }
-
-In this case, your beets config would look like this:
+For `text` origin files, each pattern must be a regular expression with exactly
+one capture group:
 
     originquery:
-        origin_file: origin.json
-        tag_patterns:
-            media: '$.mydata.media'
-            year: '$.mydata.year'
-            label: '$.mydata.label'
-            catalognum: '$.mydata.catalognum'
+      origin_file: origin.txt
+      origin_type: text
+      tag_patterns:
+        media: 'media=(.+)'
+        year: 'year=(\d{4})'
+        label: 'label=(.+)'
+        catalognum: 'catalognum=(.+)'
 
-This means that you have a file named `origin.json` at the root of each album directory, and the `media`, `year`, `label`,
-and `catalognum` tags will be parsed from this file and used by beets to query MusicBrainz. In this case, the tag and
-value mappings would be defined in an object literal under the `mydata` key at the root of the object as shown in the
-example. Of course, you're free to use a completely different schema if you update the patterns accordingly.
+JSON origin files
+~~~~~~~~~~~~~~~~~
 
-### YAML files
-
-Like JSON origin files, YAML files use [JSONPath](https://goessner.net/articles/JsonPath/) for `tag_patterns`.
-
-For example, with origin files that look like the following:
-
-    mydata:
-      media: CD
-      year: 1988
-      label: Mobile Fidelity Sound Lab
-      catalognum: UDCD 517
-
-you would use the same JSONPath-based `tag_patterns` config as JSON files (see above). `origin_file` would of course
-point to `origin.yaml` instead of `origin.json`.
-
-Examples
---------
-
-### Before `originquery`
-
-Just as a baseline, let's first try a beets import without `originquery`. We'll import [this
-edition](https://musicbrainz.org/release/51a4e8b4-1af1-4daf-a746-ac1c7206dd02) of Led Zeppelin's Houses of the Holy:
-
-    $> beet import ~/music
-
-    /home/x1ppy/music/(1973) Houses Of The Holy [2014 Remaster] (8 items)
-    Correcting tags from:
-        Led Zeppelin - Houses Of The Holy
-    To:
-        Led Zeppelin - Houses of the Holy
-    URL:
-        https://musicbrainz.org/release/3ccb4cb2-940a-4e2e-b1fd-4c0b7483280f
-    (Similarity: 100.0%) (12" Vinyl, 1973, US, Atlantic, SD 7255)
-     * The Song Remains The Same   -> The Song Remains the Same
-     * Over The Hills And Far Away -> Over the Hills and Far Away
-     * D'yer Mak'er                -> D’yer Mak’er
-    [A]pply, More candidates, Skip, Use as-is, as Tracks, Group albums, Enter search, enter Id, aBort?
-
-Nice, 100%! A perfect match…or is it?
-
-On closer inspection, you'll notice that this is actually a very different edition than the one we're importing. beets
-is reporting the media as 12" Vinyl (instead of CD), the edition year is 1973 (instead of 2014), and the catalog number
-is different. No bueno.
-
-### With `originquery`
-
-Now, let's compare that to a query with `originquery` enabled:
-
-    $> beet import ~/music
-
-    /home/x1ppy/music/(1973) Houses Of The Holy [2014 Remaster] (8 items)
-    originquery: Using origin file /home/x1ppy/music/(1973) Houses Of The Holy [2014 Remaster]/origin.txt
-    originquery: ╔════════════════╤═════════════╤═════════════╗
-    originquery: ║ Field          │ Tagged Data │ Origin Data ║
-    originquery: ╟────────────────┼─────────────┼─────────────╢
-    originquery: ║ Media          │             │ CD          ║
-    originquery: ║ Edition year   │ 1973        │ 2014        ║
-    originquery: ║ Record label   │             │ Atlantic    ║
-    originquery: ║ Catalog number │             │ 8122795828  ║
-    originquery: ║ Edition        │             │ Remastered  ║
-    originquery: ╚════════════════╧═════════════╧═════════════╝
-    Correcting tags from:
-        Led Zeppelin - Houses Of The Holy
-    To:
-        Led Zeppelin - Houses of the Holy
-    URL:
-        https://musicbrainz.org/release/51a4e8b4-1af1-4daf-a746-ac1c7206dd02
-    (Similarity: 100.0%) (CD, 2014, XE, Atlantic, 8122795828)
-     * The Song Remains The Same   -> The Song Remains the Same
-     * Over The Hills And Far Away -> Over the Hills and Far Away
-     * D'yer Mak'er                -> D’yer Mak’er
-    [A]pply, More candidates, Skip, Use as-is, as Tracks, Group albums, Enter search, enter Id, aBort?
-
-Another 100% match! This time, though, all of the fields reported by beets exactly match the ones we were looking for.
-Success!
-
-You'll also notice the shiny new table shown with the beets result. This gives us a handy reference for tags: the Tagged
-Data column lists the data beets found in the music files, and the Origin Data column lists the data `originquery`
-pulled from the origin file. With this information on hand, it's now clear why beets wasn't able to match the proper
-edition: the music tags don't contain _any_ tags that could actually identify the specific release!
-
-**Display Fields**: If you've configured additional fields in `tag_patterns` that aren't used for import matching, they will be shown below the comparison table in an "Additional origin information" section. This is useful for verifying release details like genre tags, release notes, or other metadata that helps confirm you're importing the correct version.
-
-### Conflicts
-
-Occasionally, you might see `originquery` complain about conflicts between tagged data and origin data:
-
-    /home/x1ppy/music/Billy Joel - 1978 - 52nd Street (9 items)
-    originquery: Using origin file /home/x1ppy/music/Billy Joel - 1978 - 52nd Street/origin.txt
-    originquery: ╔════════════════╤═════════════╤════════════════╗
-    originquery: ║ Field          │ Tagged Data │ Origin Data    ║
-    originquery: ╟────────────────┼─────────────┼────────────────╢
-    originquery: ║ Media          │             │ CD             ║
-    originquery: ║ Edition year   │ 1978        │ 2010           ║
-    originquery: ║ Record label   │ Columbia    │ Audio Fidelity ║
-    originquery: ║ Catalog number │ IDK 35609   │ AFZ 095        ║
-    originquery: ╚════════════════╧═════════════╧════════════════╝
-    originquery: Origin data conflicts with tagged data.
-    Tagging:
-        Billy Joel - 52nd Street
-    URL:
-        https://musicbrainz.org/release/6942718c-2fd2-4227-a882-130c500806f5
-    (Similarity: 100.0%) (CD, 1978, CA, Columbia, IDK 35609)
-    [A]pply, More candidates, Skip, Use as-is, as Tracks, Group albums, Enter search, enter Id, aBort?
-
-This happens if either the music is mistagged or the origin file contains the wrong origin data. Here, we see the tagged
-catalog number is `IDK 35609`, but the origin data is `AFZ 095`. These are clearly different editions, and it wouldn't
-make sense to try to merge them to search MusicBrainz, so `originquery` chooses just one set of values to query
-MusicBrainz and ignores the other.
-
-By default, `originquery` uses the _tagged data_ in the case of a conflict. This behavior can be changed by setting
-`use_origin_on_conflict` to `yes` in the beets config:
+For `json` origin files, each pattern must be a JSONPath expression:
 
     originquery:
-        ...
-        use_origin_on_conflict: yes
+      origin_file: origin.json
+      tag_patterns:
+        artist: $.Artist
+        album: $.Name
+        year: $['Edition year']
+        label: $['Record label']
+        catalognum: $['Catalog number']
 
-### Media Field Workaround
+YAML / YML origin files
+~~~~~~~~~~~~~~~~~~~~~~~
 
-By default, `originquery` removes the `media` field when both `media` and `catalognum` are present. This is because
-beets heavily weights media matches and may prioritize them over catalog number matches, which can lead to incorrect
-releases being selected. If you need to preserve the media field for Discogs searches or other purposes, you can set
-`preserve_media_with_catalognum` to `yes`:
-
-    originquery:
-        ...
-        preserve_media_with_catalognum: yes
-
-**Note**: Disabling this workaround may result in beets selecting incorrect releases due to media field prioritization,
-but preserves the media field for format identification in Discogs searches.
-
-### Album Artist Conflict Resolution
-
-When importing music, you may encounter situations where the `albumartist` field in your music files conflicts with the `artist` field from your `origin.yaml` files. This can cause beets to use incorrect artist information for matching, leading to poor or incorrect metadata matches.
-
-The `remove_conflicting_albumartist` option automatically detects these conflicts and removes the problematic `albumartist` field, allowing beets to use the correct artist information from your origin files:
+YAML files use the same JSONPath-based `tag_patterns` as JSON:
 
     originquery:
-        ...
-        remove_conflicting_albumartist: yes
+      origin_file: origin.yml
+      tag_patterns:
+        artist: $.Artist
+        album: $.Name
+        year: $['Edition year']
+        label: $['Record label']
+        catalognum: $['Catalog number']
 
-**How it works**: During import, the plugin compares the `albumartist` field from your music files with the `artist` field from your `origin.yaml`. If they don't match and this option is enabled, the `albumartist` field is removed, forcing beets to use the correct artist from your origin data.
+Conflicts
+---------
 
-**When to use**: Enable this option if you have music files with incorrect `albumartist` tags and want the plugin to automatically resolve these conflicts to improve metadata matching accuracy.
+The plugin treats the following fields as conflict-sensitive:
 
-**Example**: If your music file has `albumartist=Various Artists` but your `origin.yaml` specifies `artist=The Beatles`, enabling this option will remove the `albumartist` field, allowing beets to use "The Beatles" for matching instead of "Various Artists".
+- `artist`
+- `barcode`
+- `catalognum`
+- `media`
+
+When one of those fields differs between existing tags and origin data, the
+plugin reports a conflict during import.
+
+Default behavior:
+
+- tagged data wins
+- origin data is still displayed for inspection
+
+To make origin data win instead:
+
+    originquery:
+      use_origin_on_conflict: yes
+
+Albumartist cleanup
+-------------------
+
+beets derives the likely album artist from the imported items before lookup. If
+all tracks agree on `albumartist`, that value can override `artist` in the
+derived search terms.
+
+When your files have a wrong `albumartist` but the origin file has the correct
+`artist`, enable:
+
+    originquery:
+      remove_conflicting_albumartist: yes
+
+If the tagged `albumartist` is unanimous and differs from the origin artist, it
+is cleared before search.
+
+Media workaround
+----------------
+
+Beets weighs `media` strongly during matching, and in practice that can drown
+out a more useful catalog-number match. By default, `originquery` removes the
+`media` field when both `media` and `catalognum` are present:
+
+    originquery:
+      preserve_media_with_catalognum: no
+
+If you want to keep `media`:
+
+    originquery:
+      preserve_media_with_catalognum: yes
+
+URL extraction
+--------------
+
+The plugin can scan the raw origin file for provider URLs and show them during
+import. This is currently supported for:
+
+- `discogs`
+- `bandcamp`
+
+Enable extraction in the provider configuration:
+
+    discogs:
+      extract_urls_from_origin: yes
+
+    bandcamp:
+      extract_urls_from_origin: yes
+
+This feature is display-oriented at the moment; it does not automatically turn
+those URLs into beets lookup IDs.
 
 Development
 -----------
 
-For local checks:
+Local checks:
 
-    $> uv sync --group dev
-    $> uv run prek install -f
-    $> uv run prek run --all-files
-    $> uv run pytest
+    uv sync --group dev
+    uv run ruff check .
+    uv run ty check
+    uv run pytest
 
-The default development toolchain uses `prek`, `ruff`, `ty`, and `pytest`.
+The repository also includes a local importer bench wired to real sample albums:
 
-Changelog
----------
-### [1.0.2] - 2020-04-06
-* Added support for YAML origin files
-### [1.0.1] - 2020-03-25
-* Added support for glob patterns in `origin_file`
-### [1.0.0] - 2020-03-23
-* Initial release
+    ./.bench/setup.sh
+    ./.bench/reset-state.sh
+    ./.bench/import-album.sh '2018-For Emma, Forever Ago (Reissue)'
 
-[1.0.2]: https://github.com/x1ppy/beets-originquery/compare/1.0.1...1.0.2
-[1.0.1]: https://github.com/x1ppy/beets-originquery/compare/1.0.0...1.0.1
-[1.0.0]: https://github.com/x1ppy/beets-originquery/releases/tag/1.0.0
+The default development toolchain uses `ruff`, `ty`, and `pytest`.

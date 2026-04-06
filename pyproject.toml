@@ -1,7 +1,7 @@
 [project]
 name = "beets-originquery"
 version = "1.0.2"
-description = "Integrates origin.txt metadata into beets MusicBrainz queries"
+description = "Use origin files to enrich beets importer search criteria"
 readme = "README.md"
 authors = [
     { name = "x1ppy" },
