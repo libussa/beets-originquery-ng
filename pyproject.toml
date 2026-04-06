@@ -11,6 +11,7 @@ dependencies = [
     "beets>=2.5.1",
     "confuse>=2.1.0",
     "jsonpath-rw>=1.4.0",
+    "pyyaml>=6.0.0",
 ]
 
 [build-system]

@@ -434,6 +434,13 @@ class OriginQuery(BeetsPlugin):
                 # workaround, remove the media from the item if we also have a
                 # catalognum, unless the config option is set to preserve it.
                 if (
+                    self.preserve_media_with_catalognum
+                    and item.get("media")
+                    and item.get("catalognum")
+                ):
+                    config["match"]["distance_weights"]["media"] = 0.2
+
+                if (
                     not self.preserve_media_with_catalognum
                     and item.get("media")
                     and item.get("catalognum")
