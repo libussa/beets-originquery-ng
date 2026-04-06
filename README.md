@@ -1,9 +1,8 @@
 beets-originquery-ng
 ====================
 
-This repository is a detached fork of the original `beets-originquery`
-project. The published package name is `beets-originquery-ng`, while the beets
-plugin name remains `originquery` for compatibility.
+The published package name is `beets-originquery-ng`. The beets plugin name is
+`originquery`.
 
 `originquery` is a beets plugin that reads supplemental metadata from an origin
 file in each import directory and injects that data into the importer before
@@ -26,29 +25,15 @@ During `beet import`, the plugin can:
   terms
 - optionally scan the origin file for provider URLs such as Discogs or Bandcamp
 
-Current beets behavior
-----------------------
-
-`originquery` is designed around current beets metadata-source behavior:
-
-- `musicbrainz.extra_tags` is the supported way to add release-disambiguating
-  search fields such as `year`, `catalognum`, `media`, and `label`
-- Discogs can still be enabled alongside this plugin, but current beets does
-  not document a matching `discogs.extra_tags` setting
-- if no `musicbrainz.extra_tags` are configured, `originquery` still works for
-  `artist` and `album`, but the richer MusicBrainz-specific search terms are
-  unavailable
-
 Installation
 ------------
 
-Install a current beets release and then install this plugin:
+Install beets and then install this plugin:
 
-    pip install beets
+    pip install "beets>=2.5.1"
     pip install beets-originquery-ng
 
-The development bench in this repository currently validates the plugin against
-beets `2.8.0` on Python `3.10` through `3.13`.
+Supported Python versions: `3.10` through `3.13`.
 
 Minimal configuration:
 
@@ -70,15 +55,12 @@ Minimal configuration:
         media: $.Media
         albumdisambig: $.Edition
 
-If you also use Discogs, enable it normally in beets:
+If you use Discogs, enable it in beets:
 
     plugins:
       - musicbrainz
       - discogs
       - originquery
-
-The plugin does not require Discogs, and it does not currently rely on any
-Discogs-specific `extra_tags` setting.
 
 Configuration
 -------------
@@ -224,12 +206,11 @@ When your files have a wrong `albumartist` but the origin file has the correct
 If the tagged `albumartist` is unanimous and differs from the origin artist, it
 is cleared before search.
 
-Media workaround
-----------------
+Media handling
+--------------
 
-Beets weighs `media` strongly during matching, and in practice that can drown
-out a more useful catalog-number match. By default, `originquery` removes the
-`media` field when both `media` and `catalognum` are present:
+By default, `originquery` removes the `media` field when both `media` and
+`catalognum` are present:
 
     originquery:
       preserve_media_with_catalognum: no
@@ -243,7 +224,7 @@ URL extraction
 --------------
 
 The plugin can scan the raw origin file for provider URLs and show them during
-import. This is currently supported for:
+import. Supported providers:
 
 - `discogs`
 - `bandcamp`
@@ -256,8 +237,7 @@ Enable extraction in the provider configuration:
     bandcamp:
       extract_urls_from_origin: yes
 
-This feature is display-oriented at the moment; it does not automatically turn
-those URLs into beets lookup IDs.
+This feature displays matched URLs. It does not convert them into lookup IDs.
 
 Development
 -----------
@@ -269,7 +249,7 @@ Local checks:
     uv run ty check
     uv run pytest
 
-The repository also includes a local importer bench wired to real sample albums:
+The repository also includes a local importer bench for sample albums:
 
     ./.bench/setup.sh
     ./.bench/reset-state.sh
@@ -280,10 +260,7 @@ The default development toolchain uses `ruff`, `ty`, and `pytest`.
 Release process
 ---------------
 
-Releases are tag-driven from GitHub Actions and publish to PyPI using Trusted
-Publishing.
-
-Maintainer flow:
+Releases are created from Git tags in GitHub Actions and published to PyPI.
 
 1. Update `project.version` in `pyproject.toml`.
 2. Merge the version bump to `master`.
@@ -296,6 +273,3 @@ The release workflow then:
 - builds `sdist` and `wheel`
 - publishes `beets-originquery-ng` to PyPI
 - creates a GitHub Release with auto-generated notes and attached artifacts
-
-Before the first automated publish, configure PyPI Trusted Publishing for this
-repository and workflow.

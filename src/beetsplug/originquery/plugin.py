@@ -31,7 +31,6 @@ BEETS_TO_LABEL = OrderedDict(
 # Conflicts will be reported if any of these fields don't match.
 CONFLICT_FIELDS = ["barcode", "catalognum", "media", "artist"]
 
-# Current beets exposes extra_tags via MusicBrainz.
 SUPPORTED_METADATA_SOURCES = ["musicbrainz"]
 
 # Supported providers for URL extraction from origin files.
