@@ -192,6 +192,28 @@ def test_originquery_uses_album_directory_for_single_item_task(tmp_path):
     assert plugin.tasks[id(task)].missing_origin is False
 
 
+def test_originquery_uses_task_paths_before_toppath(tmp_path):
+    import_root = tmp_path / "downloads"
+    album_dir = import_root / "album"
+    album_dir.mkdir(parents=True)
+    track_path = album_dir / "01.flac"
+    track_path.write_bytes(b"")
+    (album_dir / "origin.yaml").write_text(
+        "Artist: Origin Artist\nName: Origin Album\n",
+        encoding="utf-8",
+    )
+    configure_originquery(musicbrainz_extra_tags=["year"])
+
+    item = Item(path=os.fsencode(track_path), artist="Tagged Artist", album="Tagged Album")
+    task = ImportTask(os.fsencode(import_root), [os.fsencode(album_dir)], [item])
+    plugin = OriginQuery()
+
+    plugin.import_task_start(task, None)
+
+    assert plugin.tasks[id(task)].origin_path == album_dir / "origin.yaml"
+    assert plugin.tasks[id(task)].missing_origin is False
+
+
 def test_originquery_removes_conflicting_albumartist_when_enabled(tmp_path):
     album_dir = tmp_path / "album"
     album_dir.mkdir()

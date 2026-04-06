@@ -238,12 +238,21 @@ class OriginQuery(BeetsPlugin):
         return tag in CORE_SEARCH_FIELDS or tag in self.extra_tags
 
     def _album_directory(self, task) -> Path:
-        if task.toppath:
+        candidate_paths = [Path(os.fsdecode(path)) for path in task.paths]
+        if not candidate_paths:
+            candidate_paths = [
+                Path(os.fsdecode(item.path)) for item in getattr(task, "items", []) if getattr(item, "path", None)
+            ]
+
+        if candidate_paths:
+            if len(candidate_paths) == 1:
+                base_path = candidate_paths[0]
+            else:
+                base_path = Path(os.path.commonpath([os.fspath(path) for path in candidate_paths]))
+        elif task.toppath:
             base_path = Path(os.fsdecode(task.toppath))
-        elif len(task.paths) == 1:
-            base_path = Path(os.fsdecode(task.paths[0])).parent
         else:
-            base_path = Path(os.fsdecode(os.path.commonpath(task.paths)))
+            base_path = Path()
 
         if base_path.exists() and base_path.is_file():
             return base_path.parent

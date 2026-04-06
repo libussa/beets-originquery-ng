@@ -65,8 +65,9 @@ If you use Discogs, enable it in beets:
 Configuration
 -------------
 
-`originquery` looks for an origin file at the root of each import directory.
-The filename may be a glob:
+`originquery` looks for an origin file in the source directory for each album
+task. When you import a parent directory, it resolves against the album
+subdirectory, not the top-level import root. The filename may be a glob:
 
     originquery:
       origin_file: origin-*.yaml
