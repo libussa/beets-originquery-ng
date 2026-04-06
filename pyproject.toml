@@ -1,6 +1,6 @@
 [project]
 name = "beets-originquery-ng"
-version = "2.0.0"
+version = "2.0.1"
 description = "Use origin files to enrich beets importer search criteria"
 readme = "README.md"
 authors = [
