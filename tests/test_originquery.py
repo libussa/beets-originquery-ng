@@ -1,14 +1,52 @@
+import os
 from collections import OrderedDict
+from pathlib import Path
 
+from beets import config
+from beets.importer import ImportTask
+from beets.library import Item
+
+from beetsplug.originquery import OriginQuery
 from beetsplug.originquery.plugin import (
     BEETS_TO_LABEL,
     CONFLICT_FIELDS,
     SUPPORTED_METADATA_SOURCES,
     SUPPORTED_PROVIDERS,
-    escape_braces,
     normalize_catno,
     scan_file_for_metadata_urls,
 )
+
+
+def configure_originquery(
+    origin_file: str = "origin.yaml",
+    *,
+    musicbrainz_extra_tags: list[str] | None = None,
+    remove_conflicting_albumartist: bool = False,
+    preserve_media_with_catalognum: bool = False,
+    use_origin_on_conflict: bool = False,
+    tag_patterns: dict[str, str] | None = None,
+):
+    config.clear()
+    config.add(
+        {
+            "originquery": {
+                "origin_file": origin_file,
+                "tag_patterns": tag_patterns or {"artist": "$.Artist", "album": "$.Name"},
+                "remove_conflicting_albumartist": remove_conflicting_albumartist,
+                "preserve_media_with_catalognum": preserve_media_with_catalognum,
+                "use_origin_on_conflict": use_origin_on_conflict,
+            }
+        }
+    )
+    if musicbrainz_extra_tags is not None:
+        config.add({"musicbrainz": {"extra_tags": musicbrainz_extra_tags}})
+
+
+def make_task(album_dir: Path, **item_fields):
+    track_path = album_dir / item_fields.pop("filename", "01.flac")
+    track_path.write_bytes(b"")
+    item = Item(path=os.fsencode(track_path), **item_fields)
+    return ImportTask(os.fsencode(album_dir), [os.fsencode(track_path)], [item]), item
 
 
 def test_plugin_importable():
@@ -58,44 +96,16 @@ def test_conflict_fields_content_and_type():
 
 
 def test_conflict_fields_are_known_keys():
-    missing = [f for f in CONFLICT_FIELDS if f not in BEETS_TO_LABEL]
+    missing = [field for field in CONFLICT_FIELDS if field not in BEETS_TO_LABEL]
     assert missing == []
 
 
 def test_supported_metadata_sources_are_stable():
-    assert SUPPORTED_METADATA_SOURCES == ["musicbrainz", "discogs"]
+    assert SUPPORTED_METADATA_SOURCES == ["musicbrainz"]
 
 
 def test_supported_providers_are_stable():
     assert SUPPORTED_PROVIDERS == ["discogs", "bandcamp"]
-
-
-def test_no_braces():
-    assert escape_braces("hello") == "hello"
-
-
-def test_opening_brace():
-    assert escape_braces("{") == "{{"
-
-
-def test_closing_brace():
-    assert escape_braces("}") == "}}"
-
-
-def test_both_braces():
-    assert escape_braces("{}") == "{{}}"
-
-
-def test_text_with_braces():
-    assert escape_braces("a{b}c") == "a{{b}}c"
-
-
-def test_multiple_braces():
-    assert escape_braces("{x}{y}") == "{{x}}{{y}}"
-
-
-def test_empty_string_escape_braces():
-    assert escape_braces("") == ""
 
 
 def test_uppercase():
@@ -147,3 +157,120 @@ def test_scan_file_for_metadata_urls_returns_none_for_missing_provider(tmp_path)
     origin_file.write_text("https://example.com/no-provider-here\n", encoding="utf-8")
 
     assert scan_file_for_metadata_urls(origin_file, "discogs") is None
+
+
+def test_originquery_works_without_extra_tags(tmp_path):
+    album_dir = tmp_path / "album"
+    album_dir.mkdir()
+    (album_dir / "origin.yaml").write_text("Artist: Origin Artist\nName: Origin Album\n", encoding="utf-8")
+    configure_originquery(musicbrainz_extra_tags=None, use_origin_on_conflict=True)
+
+    task, item = make_task(album_dir, artist="Tagged Artist", album="Tagged Album")
+    plugin = OriginQuery()
+
+    plugin.import_task_start(task, None)
+
+    assert plugin.extra_tags == []
+    assert plugin.extra_tags_source is None
+    assert item.artist == "Origin Artist"
+    assert item.album == "Origin Album"
+    assert plugin.tasks[id(task)].tag_compare["artist"].active is True
+
+
+def test_originquery_uses_album_directory_for_single_item_task(tmp_path):
+    album_dir = tmp_path / "album"
+    album_dir.mkdir()
+    (album_dir / "origin.yaml").write_text("Artist: Origin Artist\nName: Origin Album\n", encoding="utf-8")
+    configure_originquery(musicbrainz_extra_tags=["year"])
+
+    task, _item = make_task(album_dir, artist="Tagged Artist", album="Tagged Album")
+    plugin = OriginQuery()
+
+    plugin.import_task_start(task, None)
+
+    assert plugin.tasks[id(task)].origin_path == album_dir / "origin.yaml"
+    assert plugin.tasks[id(task)].missing_origin is False
+
+
+def test_originquery_removes_conflicting_albumartist_when_enabled(tmp_path):
+    album_dir = tmp_path / "album"
+    album_dir.mkdir()
+    (album_dir / "origin.yaml").write_text("Artist: Origin Artist\nName: Origin Album\n", encoding="utf-8")
+    configure_originquery(
+        musicbrainz_extra_tags=["year"],
+        remove_conflicting_albumartist=True,
+    )
+
+    task, item = make_task(
+        album_dir,
+        artist="Origin Artist",
+        album="Tagged Album",
+        albumartist="Wrong Album Artist",
+    )
+    plugin = OriginQuery()
+
+    plugin.import_task_start(task, None)
+
+    assert item.albumartist == ""
+    assert plugin.tasks[id(task)].tag_compare["artist"].tagged == "Origin Artist"
+    assert item.artist == "Origin Artist"
+
+
+def test_originquery_records_parse_errors_without_mutating_items(tmp_path):
+    album_dir = tmp_path / "album"
+    album_dir.mkdir()
+    (album_dir / "origin.yaml").write_text("Artist: [broken\n", encoding="utf-8")
+    configure_originquery(musicbrainz_extra_tags=["year"])
+
+    task, item = make_task(album_dir, artist="Tagged Artist", album="Tagged Album")
+    plugin = OriginQuery()
+
+    plugin.import_task_start(task, None)
+
+    assert plugin.tasks[id(task)].parse_error is not None
+    assert item.artist == "Tagged Artist"
+    assert item.album == "Tagged Album"
+
+
+def test_originquery_removes_media_when_catalognum_present(tmp_path):
+    album_dir = tmp_path / "album"
+    album_dir.mkdir()
+    (album_dir / "origin.yaml").write_text(
+        "Artist: Tagged Artist\nName: Tagged Album\nMedia: WEB\nCatalog number: ABC-123\n",
+        encoding="utf-8",
+    )
+    configure_originquery(
+        musicbrainz_extra_tags=["media", "catalognum"],
+        tag_patterns={
+            "artist": "$.Artist",
+            "album": "$.Name",
+            "media": "$.Media",
+            "catalognum": "$['Catalog number']",
+        },
+    )
+
+    task, item = make_task(album_dir, artist="Tagged Artist", album="Tagged Album")
+    plugin = OriginQuery()
+
+    plugin.import_task_start(task, None)
+
+    assert item.get("catalognum") == "ABC-123"
+    assert not item.get("media")
+    assert plugin.tasks[id(task)].tag_compare["media"].active is False
+
+
+def test_originquery_cleans_task_state_after_choice(tmp_path):
+    album_dir = tmp_path / "album"
+    album_dir.mkdir()
+    (album_dir / "origin.yaml").write_text("Artist: Origin Artist\nName: Origin Album\n", encoding="utf-8")
+    configure_originquery(musicbrainz_extra_tags=["year"])
+
+    task, _item = make_task(album_dir, artist="Tagged Artist", album="Tagged Album")
+    plugin = OriginQuery()
+
+    plugin.import_task_start(task, None)
+    assert id(task) in plugin.tasks
+
+    plugin.import_task_choice(task, None)
+
+    assert id(task) not in plugin.tasks
