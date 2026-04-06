@@ -35,7 +35,7 @@ def test_beets_to_label_keys_and_values():
             ("albumdisambig", "Edition"),
         ]
     )
-    assert BEETS_TO_LABEL == expected
+    assert expected == BEETS_TO_LABEL
 
 
 def test_beets_to_label_order_is_stable():
@@ -129,10 +129,7 @@ def test_scan_file_for_metadata_urls_finds_bbcode_link(tmp_path):
         encoding="utf-8",
     )
 
-    assert (
-        scan_file_for_metadata_urls(origin_file, "discogs")
-        == "https://www.discogs.com/release/12345-sample"
-    )
+    assert scan_file_for_metadata_urls(origin_file, "discogs") == "https://www.discogs.com/release/12345-sample"
 
 
 def test_scan_file_for_metadata_urls_finds_plain_link(tmp_path):
@@ -142,10 +139,7 @@ def test_scan_file_for_metadata_urls_finds_plain_link(tmp_path):
         encoding="utf-8",
     )
 
-    assert (
-        scan_file_for_metadata_urls(origin_file, "bandcamp")
-        == "https://artist.bandcamp.com/album/sample"
-    )
+    assert scan_file_for_metadata_urls(origin_file, "bandcamp") == "https://artist.bandcamp.com/album/sample"
 
 
 def test_scan_file_for_metadata_urls_returns_none_for_missing_provider(tmp_path):

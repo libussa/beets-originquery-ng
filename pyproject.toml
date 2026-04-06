@@ -38,5 +38,8 @@ line-length = 120
 src = ["src", "tests"]
 target-version = "py310"
 
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "C4", "PIE", "PT", "RUF"]
+
 [tool.ruff.format]
 docstring-code-format = true

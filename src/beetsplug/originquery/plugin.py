@@ -97,7 +97,7 @@ def highlight(text, active=True):
 
 class OriginQuery(BeetsPlugin):
     def __init__(self):
-        super(OriginQuery, self).__init__()
+        super().__init__()
         # Keep the config namespace stable even though this class lives in a submodule.
         self.name = "originquery"
         self.config = config[self.name]
@@ -148,9 +148,7 @@ class OriginQuery(BeetsPlugin):
         self.tag_patterns = {}
 
         try:
-            origin_type = (
-                self.config["origin_type"].as_choice(["yaml", "json", "text"]).lower()
-            )
+            origin_type = self.config["origin_type"].as_choice(["yaml", "json", "text"]).lower()
         except confuse.NotFoundError:
             origin_type = self.origin_file.suffix.lower()[1:]
 
@@ -164,18 +162,15 @@ class OriginQuery(BeetsPlugin):
         for key, pattern in config_patterns.items():
             # Add all fields to tag_patterns, but warn about unknown ones
             if key not in BEETS_TO_LABEL:
-                self.info(
-                    f'Display field detected: "{key}" - will be shown during import'
-                )
+                self.info(f'Display field detected: "{key}" - will be shown during import')
 
             if origin_type == "json" or origin_type == "yaml":
                 try:
                     self.tag_patterns[key] = jsonpath_rw.parse(pattern)
                 except Exception as e:
                     return fail(
-                        'Config error: invalid tag pattern for "{0}". "{1}" is not a valid JSON path ({2}).'.format(
-                            key, pattern, format(str(e))
-                        )
+                        f'Config error: invalid tag pattern for "{key}". '
+                        f'"{pattern}" is not a valid JSON path ({format(str(e))}).'
                     )
                 continue
 
@@ -184,15 +179,12 @@ class OriginQuery(BeetsPlugin):
                 self.tag_patterns[key] = regex
             except re.error as e:
                 return fail(
-                    'Config error: invalid tag pattern for "{0}". "{1}" is not a valid regex ({2}).'.format(
-                        key, pattern, format(str(e))
-                    )
+                    f'Config error: invalid tag pattern for "{key}". '
+                    f'"{pattern}" is not a valid regex ({format(str(e))}).'
                 )
             if regex.groups != 1:
                 return fail(
-                    'Config error: invalid tag pattern for "{0}". "{1}" must have exactly one capture group.'.format(
-                        key, pattern
-                    )
+                    f'Config error: invalid tag pattern for "{key}". "{pattern}" must have exactly one capture group.'
                 )
 
         self.register_listener("import_task_start", self.import_task_start)
@@ -200,23 +192,17 @@ class OriginQuery(BeetsPlugin):
         self.tasks = {}
 
         try:
-            self.use_origin_on_conflict = self.config["use_origin_on_conflict"].get(
-                bool
-            )
+            self.use_origin_on_conflict = self.config["use_origin_on_conflict"].get(bool)
         except confuse.NotFoundError:
             self.use_origin_on_conflict = False
 
         try:
-            self.preserve_media_with_catalognum = self.config[
-                "preserve_media_with_catalognum"
-            ].get(bool)
+            self.preserve_media_with_catalognum = self.config["preserve_media_with_catalognum"].get(bool)
         except confuse.NotFoundError:
             self.preserve_media_with_catalognum = False
 
         try:
-            self.remove_conflicting_albumartist = self.config[
-                "remove_conflicting_albumartist"
-            ].get(bool)
+            self.remove_conflicting_albumartist = self.config["remove_conflicting_albumartist"].get(bool)
         except confuse.NotFoundError:
             self.remove_conflicting_albumartist = False
 
@@ -240,17 +226,13 @@ class OriginQuery(BeetsPlugin):
             w_tagged = max(len(headers[1]), *(len(str(v["tagged"])) for k, v in items))
             w_origin = max(len(headers[2]), *(len(str(v["origin"])) for k, v in items))
 
-            self.info(
-                f"╔{'═' * (w_key + 2)}╤{'═' * (w_tagged + 2)}╤{'═' * (w_origin + 2)}╗"
-            )
+            self.info(f"╔{'═' * (w_key + 2)}╤{'═' * (w_tagged + 2)}╤{'═' * (w_origin + 2)}╗")
             self.info(
                 f"║ {headers[0].ljust(w_key)} │ "
                 f"{highlight(headers[1].ljust(w_tagged), use_tagged)} │ "
                 f"{highlight(headers[2].ljust(w_origin), not use_tagged)} ║"
             )
-            self.info(
-                f"╟{'─' * (w_key + 2)}┼{'─' * (w_tagged + 2)}┼{'─' * (w_origin + 2)}╢"
-            )
+            self.info(f"╟{'─' * (w_key + 2)}┼{'─' * (w_tagged + 2)}┼{'─' * (w_origin + 2)}╢")
             for k, v in items:
                 if not v["tagged"] and not v["origin"]:
                     continue
@@ -261,19 +243,17 @@ class OriginQuery(BeetsPlugin):
                     f"{highlight(str(v['tagged']).ljust(w_tagged), tagged_active)} │ "
                     f"{highlight(str(v['origin']).ljust(w_origin), origin_active)} ║"
                 )
-            self.info(
-                f"╚{'═' * (w_key + 2)}╧{'═' * (w_tagged + 2)}╧{'═' * (w_origin + 2)}╝"
-            )
+            self.info(f"╚{'═' * (w_key + 2)}╧{'═' * (w_tagged + 2)}╧{'═' * (w_origin + 2)}╝")
 
     def before_choose_candidate(self, task, session):
         task_info = self.tasks[task]
         origin_path = task_info["origin_path"]
 
         if task_info.get("missing_origin", False):
-            self.warn("No origin file found at {0}".format(origin_path))
+            self.warn(f"No origin file found at {origin_path}")
             return
         else:
-            self.info("Using origin file {0}".format(origin_path))
+            self.info(f"Using origin file {origin_path}")
 
         conflict = task_info.get("conflict", False)
         use_tagged = conflict and not self.use_origin_on_conflict
@@ -354,7 +334,7 @@ class OriginQuery(BeetsPlugin):
         task_info["origin_path"] = origin_path = Path(origin_glob[0])
 
         conflict = False
-        likelies, consensus = get_most_common_tags(task.items)
+        likelies, _consensus = get_most_common_tags(task.items)
         task_info["tag_compare"] = tag_compare = OrderedDict()
         task_info["display_fields"] = display_fields = OrderedDict()
 
@@ -421,9 +401,7 @@ class OriginQuery(BeetsPlugin):
                     if tag not in self.tag_patterns:
                         continue
                     if tag == "year" and origin_value:
-                        origin_value = (
-                            int(origin_value) if origin_value.isdigit() else ""
-                        )
+                        origin_value = int(origin_value) if origin_value.isdigit() else ""
                     item[tag] = origin_value
 
                 # Apply the media removal workaround by default
@@ -433,18 +411,10 @@ class OriginQuery(BeetsPlugin):
                 # grouped as CD). This does not make a good combination. As a
                 # workaround, remove the media from the item if we also have a
                 # catalognum, unless the config option is set to preserve it.
-                if (
-                    self.preserve_media_with_catalognum
-                    and item.get("media")
-                    and item.get("catalognum")
-                ):
+                if self.preserve_media_with_catalognum and item.get("media") and item.get("catalognum"):
                     config["match"]["distance_weights"]["media"] = 0.2
 
-                if (
-                    not self.preserve_media_with_catalognum
-                    and item.get("media")
-                    and item.get("catalognum")
-                ):
+                if not self.preserve_media_with_catalognum and item.get("media") and item.get("catalognum"):
                     self.info("Removing media field (has catalognum)")
                     del item["media"]
                     tag_compare["media"]["active"] = False
