@@ -24,7 +24,7 @@ def configure_originquery(
     remove_conflicting_albumartist: bool = False,
     preserve_media_with_catalognum: bool = False,
     use_origin_on_conflict: bool = False,
-    tag_patterns: dict[str, str] | None = None,
+    tag_patterns: dict[str, str | list[str]] | None = None,
 ):
     config.clear()
     config.add(
@@ -236,6 +236,57 @@ def test_originquery_removes_conflicting_albumartist_when_enabled(tmp_path):
     assert item.albumartist == ""
     assert plugin.tasks[id(task)].tag_compare["artist"].tagged == "Origin Artist"
     assert item.artist == "Origin Artist"
+
+
+def test_originquery_uses_jsonpath_fallbacks_for_yaml(tmp_path):
+    album_dir = tmp_path / "album"
+    album_dir.mkdir()
+    (album_dir / "origin.yaml").write_text(
+        "Artist: Origin Artist\nName: Origin Album\nCatalog number: ~\nOriginal catalog number: ABC-123\n",
+        encoding="utf-8",
+    )
+    configure_originquery(
+        musicbrainz_extra_tags=["catalognum"],
+        use_origin_on_conflict=True,
+        tag_patterns={
+            "artist": "$.Artist",
+            "album": "$.Name",
+            "catalognum": ['$."Catalog number"', '$."Original catalog number"'],
+        },
+    )
+
+    task, item = make_task(album_dir, artist="Tagged Artist", album="Tagged Album")
+    plugin = OriginQuery()
+
+    plugin.import_task_start(task, None)
+
+    assert item.get("catalognum") == "ABC-123"
+    assert plugin.tasks[id(task)].tag_compare["catalognum"].origin == "ABC-123"
+
+
+def test_originquery_prefers_first_non_empty_jsonpath_fallback(tmp_path):
+    album_dir = tmp_path / "album"
+    album_dir.mkdir()
+    (album_dir / "origin.yaml").write_text(
+        "Artist: Origin Artist\nName: Origin Album\nCatalog number: PRIMARY\nOriginal catalog number: FALLBACK\n",
+        encoding="utf-8",
+    )
+    configure_originquery(
+        musicbrainz_extra_tags=["catalognum"],
+        use_origin_on_conflict=True,
+        tag_patterns={
+            "artist": "$.Artist",
+            "album": "$.Name",
+            "catalognum": ['$."Catalog number"', '$."Original catalog number"'],
+        },
+    )
+
+    task, item = make_task(album_dir, artist="Tagged Artist", album="Tagged Album")
+    plugin = OriginQuery()
+
+    plugin.import_task_start(task, None)
+
+    assert item.get("catalognum") == "PRIMARY"
 
 
 def test_originquery_records_parse_errors_without_mutating_items(tmp_path):

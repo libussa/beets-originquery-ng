@@ -143,7 +143,8 @@ one capture group:
 JSON origin files
 ~~~~~~~~~~~~~~~~~
 
-For `json` origin files, each pattern must be a JSONPath expression:
+For `json` origin files, each pattern may be either a JSONPath expression or
+an ordered list of JSONPath expressions for fallback lookup:
 
     originquery:
       origin_file: origin.json
@@ -153,20 +154,30 @@ For `json` origin files, each pattern must be a JSONPath expression:
         year: $['Edition year']
         label: $['Record label']
         catalognum: $['Catalog number']
+        country:
+          - $['Country']
+          - $['Release country']
 
 YAML / YML origin files
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-YAML files use the same JSONPath-based `tag_patterns` as JSON:
+YAML files use the same JSONPath-based `tag_patterns` as JSON, including
+fallback lists:
 
     originquery:
       origin_file: origin.yml
       tag_patterns:
         artist: $.Artist
         album: $.Name
-        year: $['Edition year']
-        label: $['Record label']
-        catalognum: $['Catalog number']
+        year:
+          - $['Edition year']
+          - $['Original year']
+        label:
+          - $['Record label']
+          - $['Original release label']
+        catalognum:
+          - $['Catalog number']
+          - $['Original catalog number']
 
 Conflicts
 ---------

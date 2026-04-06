@@ -191,8 +191,17 @@ class OriginQuery(BeetsPlugin):
                 self._log.debug('Display field "{}" will be shown during import', key)
 
             if origin_type in {"json", "yaml"}:
+                raw_patterns = pattern if isinstance(pattern, list) else [pattern]
+                if not raw_patterns or not all(isinstance(value, str) for value in raw_patterns):
+                    self._log.error(
+                        'Invalid JSONPath for "{}": {} (must be a string or non-empty list of strings)',
+                        key,
+                        pattern,
+                    )
+                    self._log.error("Plugin disabled.")
+                    return False
                 try:
-                    self.tag_patterns[key] = jsonpath_rw.parse(pattern)
+                    self.tag_patterns[key] = [jsonpath_rw.parse(value) for value in raw_patterns]
                 except Exception as exc:
                     self._log.error(
                         'Invalid JSONPath for "{}": {} ({})',
@@ -228,6 +237,16 @@ class OriginQuery(BeetsPlugin):
             self.tag_patterns[key] = regex
 
         return True
+
+    @staticmethod
+    def _jsonpath_values(data: Any, pattern: object) -> list[str]:
+        patterns = cast(list[Any], pattern)
+        for compiled in patterns:
+            matches = compiled.find(data)
+            for match in matches:
+                if match.value:
+                    return [str(match.value)]
+        return []
 
     def _state_for(self, task) -> TaskState:
         return self.tasks[id(task)]
@@ -392,10 +411,8 @@ class OriginQuery(BeetsPlugin):
             raise OriginQueryError(f"invalid JSON ({exc})") from exc
 
         for key, pattern in self.tag_patterns.items():
-            pattern = cast(Any, pattern)
-            matches = pattern.find(data)
-            if matches:
-                yield key, str(matches[0].value)
+            for value in self._jsonpath_values(data, pattern):
+                yield key, value
 
     def match_yaml(self, origin_path: Path):
         try:
@@ -407,10 +424,8 @@ class OriginQuery(BeetsPlugin):
             return
 
         for key, pattern in self.tag_patterns.items():
-            pattern = cast(Any, pattern)
-            matches = pattern.find(data)
-            if matches and matches[0].value:
-                yield key, str(matches[0].value)
+            for value in self._jsonpath_values(data, pattern):
+                yield key, value
 
     def import_task_start(self, task, session) -> None:
         origin_path = self._find_origin_file(task)
