@@ -162,9 +162,7 @@ class OriginQuery(BeetsPlugin):
     def _configure_patterns(self) -> bool:
         config_patterns = self.config["tag_patterns"].get()
         if not isinstance(config_patterns, dict) or not config_patterns:
-            self._log.error(
-                "originquery.tag_patterns must be a non-empty dictionary of key -> pattern mappings."
-            )
+            self._log.error("originquery.tag_patterns must be a non-empty dictionary of key -> pattern mappings.")
             self._log.error("Plugin disabled.")
             return False
 
