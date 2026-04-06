@@ -336,6 +336,18 @@ The `remove_conflicting_albumartist` option automatically detects these conflict
 
 **Example**: If your music file has `albumartist=Various Artists` but your `origin.yaml` specifies `artist=The Beatles`, enabling this option will remove the `albumartist` field, allowing beets to use "The Beatles" for matching instead of "Various Artists".
 
+Development
+-----------
+
+For local checks:
+
+    $> uv sync --group dev
+    $> uv run prek install -f
+    $> uv run prek run --all-files
+    $> uv run pytest
+
+The default development toolchain uses `prek`, `ruff`, `ty`, and `pytest`.
+
 Changelog
 ---------
 ### [1.0.2] - 2020-04-06
