@@ -1,5 +1,9 @@
-beets-originquery
-=================
+beets-originquery-ng
+====================
+
+This repository is a detached fork of the original `beets-originquery`
+project. The published package name is `beets-originquery-ng`, while the beets
+plugin name remains `originquery` for compatibility.
 
 `originquery` is a beets plugin that reads supplemental metadata from an origin
 file in each import directory and injects that data into the importer before
@@ -41,10 +45,10 @@ Installation
 Install a current beets release and then install this plugin:
 
     pip install beets
-    pip install git+https://github.com/x1ppy/beets-originquery
+    pip install beets-originquery-ng
 
 The development bench in this repository currently validates the plugin against
-beets `2.8.0`.
+beets `2.8.0` on Python `3.10` through `3.13`.
 
 Minimal configuration:
 

@@ -1,12 +1,19 @@
 [project]
-name = "beets-originquery"
+name = "beets-originquery-ng"
 version = "1.0.2"
 description = "Use origin files to enrich beets importer search criteria"
 readme = "README.md"
 authors = [
     { name = "x1ppy" },
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.14"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
 dependencies = [
     "beets>=2.5.1",
     "confuse>=2.1.0",
