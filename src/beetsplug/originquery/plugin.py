@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import sys
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -232,7 +233,13 @@ class OriginQuery(BeetsPlugin):
         return self.tasks[id(task)]
 
     def _emit_visible(self, message: str) -> None:
-        self._log.warning("{}", message)
+        text = f"plugin: {message}\n"
+        if hasattr(sys.stdout, "buffer"):
+            encoding = getattr(sys.stdout, "encoding", None) or "utf-8"
+            sys.stdout.buffer.write(text.encode(encoding, "replace"))
+            sys.stdout.buffer.flush()
+        else:
+            sys.stdout.write(text)
 
     def _active_for(self, tag: str) -> bool:
         return tag in CORE_SEARCH_FIELDS or tag in self.extra_tags

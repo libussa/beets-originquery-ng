@@ -307,6 +307,16 @@ def test_originquery_media_removal_is_silent_by_default(tmp_path, capsys):
     assert "Removing media field (has catalognum)" not in captured.err
 
 
+def test_emit_visible_uses_ui_output(capsys):
+    plugin = OriginQuery()
+
+    plugin._emit_visible("hello")
+    captured = capsys.readouterr()
+
+    assert captured.out == "plugin: hello\n"
+    assert captured.err == ""
+
+
 def test_originquery_cleans_task_state_after_choice(tmp_path):
     album_dir = tmp_path / "album"
     album_dir.mkdir()
