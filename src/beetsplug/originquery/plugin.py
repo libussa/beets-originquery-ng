@@ -311,9 +311,11 @@ class OriginQuery(BeetsPlugin):
         if not self.remove_conflicting_albumartist or not origin_artist:
             return False
 
-        likelies, consensus = get_most_common_tags(task.items)
-        tagged_albumartist = str(likelies.get("albumartist") or "")
-        if not tagged_albumartist or not consensus.get("albumartist"):
+        albumartists = {item.albumartist for item in task.items}
+        if len(albumartists) != 1:
+            return False
+        tagged_albumartist = str(albumartists.pop() or "")
+        if not tagged_albumartist:
             return False
 
         if tagged_albumartist == origin_artist:
@@ -450,7 +452,9 @@ class OriginQuery(BeetsPlugin):
             # Recompute likely tags after removing the conflicting field.
             pass
 
-        likelies, _consensus = get_most_common_tags(task.items)
+        tags = get_most_common_tags(task.items)
+        # Older Beets returns (likelies, consensus); newer versions return only likelies.
+        likelies = tags[0] if isinstance(tags, tuple) else tags
         for tag in BEETS_TO_LABEL:
             task_state.tag_compare[tag] = TagComparison(
                 tagged=str(likelies.get(tag, "") or ""),

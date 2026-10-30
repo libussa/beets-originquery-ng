@@ -2,6 +2,7 @@ import os
 from collections import OrderedDict
 from pathlib import Path
 
+import pytest
 from beets import config
 from beets.importer import ImportTask
 from beets.library import Item
@@ -236,6 +237,49 @@ def test_originquery_removes_conflicting_albumartist_when_enabled(tmp_path):
     assert item.albumartist == ""
     assert plugin.tasks[id(task)].tag_compare["artist"].tagged == "Origin Artist"
     assert item.artist == "Origin Artist"
+
+
+@pytest.mark.parametrize("legacy_result", [False, True])
+def test_originquery_accepts_both_common_tag_return_formats(tmp_path, monkeypatch, legacy_result):
+    (tmp_path / "origin.yaml").write_text("Artist: Origin Artist\nName: Origin Album\n", encoding="utf-8")
+    configure_originquery(use_origin_on_conflict=True)
+    task, item = make_task(tmp_path, artist="Tagged Artist", album="Tagged Album")
+    tags = {"artist": "Tagged Artist", "album": "Tagged Album", "year": 2000}
+    result = (tags, dict.fromkeys(tags, True)) if legacy_result else tags
+    monkeypatch.setattr("beetsplug.originquery.plugin.get_most_common_tags", lambda items: result)
+    plugin = OriginQuery()
+
+    plugin.import_task_start(task, None)
+
+    assert plugin.tasks[id(task)].tag_compare["artist"].tagged == "Tagged Artist"
+    assert plugin.tasks[id(task)].tag_compare["album"].tagged == "Tagged Album"
+    assert item.artist == "Origin Artist"
+    assert item.album == "Origin Album"
+
+
+@pytest.mark.parametrize(
+    ("albumartists", "expected"),
+    [
+        (["Wrong Artist", "Wrong Artist"], ["", ""]),
+        (["Wrong Artist", "Wrong Artist", "Other Artist"], ["Wrong Artist", "Wrong Artist", "Other Artist"]),
+        (["Wrong Artist", ""], ["Wrong Artist", ""]),
+        (["Origin Artist", "Origin Artist"], ["Origin Artist", "Origin Artist"]),
+        (["", ""], ["", ""]),
+    ],
+)
+def test_originquery_albumartist_removal_requires_nonempty_conflicting_consensus(tmp_path, albumartists, expected):
+    (tmp_path / "origin.yaml").write_text("Artist: Origin Artist\nName: Origin Album\n", encoding="utf-8")
+    configure_originquery(remove_conflicting_albumartist=True)
+    items = [
+        Item(path=os.fsencode(tmp_path / f"{index}.flac"), artist="Origin Artist", albumartist=artist)
+        for index, artist in enumerate(albumartists)
+    ]
+    task = ImportTask(os.fsencode(tmp_path), [os.fsencode(tmp_path)], items)
+    plugin = OriginQuery()
+
+    plugin.import_task_start(task, None)
+
+    assert [item.albumartist for item in items] == expected
 
 
 def test_originquery_uses_jsonpath_fallbacks_for_yaml(tmp_path):
