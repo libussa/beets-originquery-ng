@@ -134,9 +134,10 @@ class OriginQuery(BeetsPlugin):
         self.preserve_media_with_catalognum = self.config["preserve_media_with_catalognum"].get(bool)
         self.remove_conflicting_albumartist = self.config["remove_conflicting_albumartist"].get(bool)
 
-        self.register_listener("import_task_start", self.import_task_start)
-        self.register_listener("before_choose_candidate", self.before_choose_candidate)
-        self.register_listener("import_task_choice", self.import_task_choice)
+        # ty >= 0.0.61 matches no listener against Beets' Unpack[TypedDict] signatures.
+        self.register_listener("import_task_start", self.import_task_start)  # ty: ignore[no-matching-overload]
+        self.register_listener("before_choose_candidate", self.before_choose_candidate)  # ty: ignore[no-matching-overload]
+        self.register_listener("import_task_choice", self.import_task_choice)  # ty: ignore[no-matching-overload]
 
     def _configure_extra_tags(self) -> bool:
         for source in SUPPORTED_METADATA_SOURCES:
