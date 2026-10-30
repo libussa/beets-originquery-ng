@@ -33,7 +33,7 @@ Install beets and then install this plugin:
     pip install "beets>=2.5.1"
     pip install beets-originquery-ng
 
-Supported Python versions: `3.10` through `3.13`.
+Supported Python versions: `3.10` through `3.14`.
 
 Minimal configuration:
 
