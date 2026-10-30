@@ -376,6 +376,38 @@ def test_originquery_removes_media_when_catalognum_present(tmp_path):
     assert plugin.tasks[id(task)].tag_compare["media"].active is False
 
 
+def test_originquery_preserves_tags_missing_from_origin(tmp_path):
+    album_dir = tmp_path / "album"
+    album_dir.mkdir()
+    (album_dir / "origin.yaml").write_text(
+        "Artist: Tagged Artist\nName: Tagged Album\nCatalog number: ''\n",
+        encoding="utf-8",
+    )
+    configure_originquery(
+        musicbrainz_extra_tags=["catalognum", "label"],
+        tag_patterns={
+            "artist": "$.Artist",
+            "album": "$.Name",
+            "catalognum": "$['Catalog number']",
+            "label": "$['Record label']",
+        },
+    )
+
+    task, item = make_task(
+        album_dir,
+        artist="Tagged Artist",
+        album="Tagged Album",
+        catalognum="ABC-123",
+        label="Tagged Label",
+    )
+    plugin = OriginQuery()
+
+    plugin.import_task_start(task, None)
+
+    assert item.catalognum == "ABC-123"
+    assert item.label == "Tagged Label"
+
+
 def test_originquery_media_removal_is_silent_by_default(tmp_path, capsys):
     album_dir = tmp_path / "album"
     album_dir.mkdir()

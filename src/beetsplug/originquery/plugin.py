@@ -494,11 +494,11 @@ class OriginQuery(BeetsPlugin):
 
         for item in task.items:
             for tag, entry in task_state.tag_compare.items():
-                if tag not in self.tag_patterns:
+                if tag not in self.tag_patterns or not entry.origin:
                     continue
 
                 origin_value: str | int = entry.origin
-                if tag == "year" and entry.origin:
+                if tag == "year":
                     origin_value = int(entry.origin) if entry.origin.isdigit() else ""
                 item[tag] = origin_value
 
