@@ -125,8 +125,7 @@ import summary, but they are not mapped onto beets search fields.
 File formats
 ------------
 
-Text origin files
-~~~~~~~~~~~~~~~~~
+### Text origin files
 
 For `text` origin files, each pattern must be a regular expression with exactly
 one capture group:
@@ -140,8 +139,7 @@ one capture group:
         label: 'label=(.+)'
         catalognum: 'catalognum=(.+)'
 
-JSON origin files
-~~~~~~~~~~~~~~~~~
+### JSON origin files
 
 For `json` origin files, each pattern may be either a JSONPath expression or
 an ordered list of JSONPath expressions for fallback lookup:
@@ -158,8 +156,7 @@ an ordered list of JSONPath expressions for fallback lookup:
           - $['Country']
           - $['Release country']
 
-YAML / YML origin files
-~~~~~~~~~~~~~~~~~~~~~~~
+### YAML / YML origin files
 
 YAML files use the same JSONPath-based `tag_patterns` as JSON, including
 fallback lists:
