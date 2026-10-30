@@ -7,13 +7,16 @@ import sys
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import jsonpath_rw
 import yaml
 from beets import config, ui
 from beets.plugins import BeetsPlugin
 from beets.util import get_most_common_tags
+
+if TYPE_CHECKING:
+    from beets.util import PromptChoice
 
 BEETS_TO_LABEL = OrderedDict(
     [
@@ -358,12 +361,12 @@ class OriginQuery(BeetsPlugin):
             )
         self._emit_visible(f"╚{'═' * (w_key + 2)}╧{'═' * (w_tagged + 2)}╧{'═' * (w_origin + 2)}╝")
 
-    def before_choose_candidate(self, task, session) -> None:
+    def before_choose_candidate(self, task, session) -> list[PromptChoice]:
         task_state = self._state_for(task)
 
         if task_state.missing_origin:
             self._log.warning("No origin file found at {}", task_state.origin_path)
-            return
+            return []
 
         if task_state.parse_error:
             self._log.warning(
@@ -371,7 +374,7 @@ class OriginQuery(BeetsPlugin):
                 task_state.origin_path,
                 task_state.parse_error,
             )
-            return
+            return []
 
         self._emit_visible(f"Using origin file {task_state.origin_path}")
         use_tagged = task_state.conflict and not self.use_origin_on_conflict
@@ -389,6 +392,8 @@ class OriginQuery(BeetsPlugin):
 
         if task_state.conflict:
             self._log.warning("Origin data conflicts with tagged data.")
+
+        return []
 
     def import_task_choice(self, task, session) -> None:
         self.tasks.pop(id(task), None)
