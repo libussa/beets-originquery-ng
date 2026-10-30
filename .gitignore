@@ -3,3 +3,5 @@ __pycache__
 .ruff_cache
 test_data/
 .docker-test/
+.bench/
+/config.yml
