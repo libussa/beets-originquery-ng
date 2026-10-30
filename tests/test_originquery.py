@@ -440,7 +440,8 @@ def test_emit_visible_uses_ui_output(capsys):
     plugin._emit_visible("hello")
     captured = capsys.readouterr()
 
-    assert captured.out == "plugin: hello\n"
+    assert captured.out == "originquery: hello\n"
+    assert plugin._log.name == "beets.originquery"
     assert captured.err == ""
 
 

@@ -107,10 +107,8 @@ def highlight(text: str, active: bool = True) -> str:
 
 class OriginQuery(BeetsPlugin):
     def __init__(self) -> None:
-        super().__init__()
-        # Keep the config namespace stable even though this class lives in a submodule.
-        self.name = "originquery"
-        self.config = config[self.name]
+        # Keep the plugin name stable even though this class lives in a submodule.
+        super().__init__("originquery")
         self.config.add(
             {
                 "origin_type": "",
@@ -153,8 +151,8 @@ class OriginQuery(BeetsPlugin):
                 break
 
         if self.extra_tags_source:
-            self._log.info("Using extra tags from {}", self.extra_tags_source)
-            self._log.info("Available extra tags: {}", ", ".join(self.extra_tags))
+            self._log.debug("Using extra tags from {}", self.extra_tags_source)
+            self._log.debug("Available extra tags: {}", ", ".join(self.extra_tags))
         else:
             self._log.warning(
                 "No supported metadata-source extra_tags configured. "
@@ -255,7 +253,7 @@ class OriginQuery(BeetsPlugin):
         return self.tasks[id(task)]
 
     def _emit_visible(self, message: str) -> None:
-        text = f"plugin: {message}\n"
+        text = f"{self.name}: {message}\n"
         if hasattr(sys.stdout, "buffer"):
             encoding = getattr(sys.stdout, "encoding", None) or "utf-8"
             sys.stdout.buffer.write(text.encode(encoding, "replace"))
